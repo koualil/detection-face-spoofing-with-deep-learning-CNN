@@ -1,0 +1,76 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Spoofing Detection</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="min-h-screen flex items-center justify-center">
+        <div class="bg-white shadow-lg rounded-lg p-6 w-full max-w-md">
+            <h1 class="text-2xl font-bold text-center text-gray-800 mb-6">Face Spoofing Detection</h1>
+            
+            <div class="flex flex-col items-center">
+                <video id="video" class="w-full rounded-md border border-gray-300 mb-4" autoplay></video>
+                <button id="capture" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
+                    Capture Image
+                </button>
+            </div>
+            
+            <div id="result" class="mt-4 text-center text-lg font-medium text-gray-700">
+                Result will appear here
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const resultDiv = document.getElementById('result');
+        const captureButton = document.getElementById('capture');
+
+        // Activer la caméra
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+            })
+            .catch(err => {
+                console.error('Erreur d\'accès à la caméra :', err);
+                resultDiv.textContent = 'Impossible d\'accéder à la caméra.';
+            });
+
+        captureButton.addEventListener('click', async () => {
+            resultDiv.innerHTML = '<div class="animate-spin h-6 w-6 border-4 border-blue-500 border-t-transparent rounded-full mx-auto"></div>';
+            
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const imageBase64 = canvas.toDataURL('image/png');
+
+            try {
+                const response = await fetch('http://127.0.0.1:5000/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ image: imageBase64 }),
+                });
+
+                const result = await response.json();
+                if (result.error) {
+                    resultDiv.textContent = `Erreur : ${result.error}`;
+                } else {
+                    resultDiv.textContent = `Résultat : ${result.result}`;
+                }
+            } catch (error) {
+                console.error('Erreur lors de la requête :', error);
+                resultDiv.textContent = 'Erreur lors de la communication avec le serveur.';
+            }
+        });
+    </script>
+</body>
+</html>
